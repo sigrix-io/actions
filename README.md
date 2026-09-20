@@ -53,6 +53,10 @@ default case is one line carrying no upstream pin at all:
     install: build twine      # default: -e .[dev]
 ```
 
+Pass `install: ""` to skip the install and get only a Python — the shape
+`sigrix-io/postern`'s link checker needs, where the script is standard library
+only and the repository root holds no installable package.
+
 Pass `checkout: false` when the caller has already checked out — because it
 needs options this action does not expose (a `ref`, a `fetch-depth`,
 submodules), or because it is this repository testing its own actions.

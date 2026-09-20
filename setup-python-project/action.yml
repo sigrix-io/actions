@@ -20,6 +20,11 @@ inputs:
       Arguments passed to `pip install`. The default installs the caller's
       project and its dev extra in editable mode, which is what lint, type and
       test jobs want; build jobs pass `build twine` instead.
+
+      Set it to the empty string to skip the install entirely. That is not a
+      degenerate case — `sigrix-io/postern` runs a standard-library-only script
+      against a repository with no installable package at its root, and wants
+      a Python and nothing else.
     required: false
     default: -e .[dev]
   checkout:
@@ -43,7 +48,8 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - shell: bash
+    - if: inputs.install != ''
+      shell: bash
       # Through the environment rather than interpolated into the script body:
       # a `${{ }}` expression is pasted in before bash ever sees the line, so an
       # input carrying a quote or a semicolon would be executing, not arguing.

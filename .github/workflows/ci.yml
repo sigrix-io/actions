@@ -69,6 +69,29 @@ jobs:
       - name: Both packages arrived, so the argument was split rather than passed whole
         run: python -c "import build, twine; print('build and twine import')"
 
+  # The shape postern's links.yml needs: a Python, and nothing installed.
+  # Without the `if:` on the install step this fails, because `pip install`
+  # with no arguments is an error rather than a no-op.
+  setup-without-installing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./setup-python-project
+        with:
+          checkout: false
+          install: ""
+
+      - name: A Python is present, and nothing was installed into it
+        run: |
+          set -euo pipefail
+          python -c "import sys; print(sys.version)"
+          if python -c "import pytest" 2>/dev/null; then
+            echo "::error::pytest is importable, so something was installed after all"
+            exit 1
+          fi
+          echo "no project installed, as asked"
+
   # Pointed at a package that is already published and cannot change:
   # a PyPI version is permanent, so this is a fixed target.
   verify-published:
@@ -102,7 +125,7 @@ jobs:
   # does not mean editing a branch protection rule to match.
   ci-passed:
     if: always()
-    needs: [setup-editable, setup-multiple-packages, verify-published]
+    needs: [setup-editable, setup-multiple-packages, setup-without-installing, verify-published]
     runs-on: ubuntu-latest
     steps:
       - name: Every job succeeded

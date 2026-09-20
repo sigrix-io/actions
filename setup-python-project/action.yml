@@ -1,0 +1,62 @@
+# Check out the caller, install a Python, and install the project.
+#
+# Three Sigrix repositories ran the same two `uses:` lines in eleven places
+# between them. Every one named a commit, which is right — a tag is moved by
+# whoever owns the action — but a pin only stays correct if something bumps it,
+# and eleven pins meant three Dependabot queues editing the same two actions.
+# That is how `sigrix-io/mullion` came to run floating tags while
+# `sigrix-io/postern` was pinned: the divergence happened between review cycles
+# and nothing failed. Here they are named once.
+name: Set up a Python project
+description: Check out the repository, install a Python version, and pip-install the project.
+
+inputs:
+  python-version:
+    description: The Python to install.
+    required: false
+    default: "3.13"
+  install:
+    description: >-
+      Arguments passed to `pip install`. The default installs the caller's
+      project and its dev extra in editable mode, which is what lint, type and
+      test jobs want; build jobs pass `build twine` instead.
+    required: false
+    default: -e .[dev]
+  checkout:
+    description: >-
+      Whether to check the caller's repository out. Left true, a calling job is
+      a single `uses:` line carrying no upstream pin at all, which is the point
+      of this action. Set it to "false" when the caller has already checked out
+      — because it needs options this action does not expose (a `ref`, a
+      `fetch-depth`, submodules), or because it is this repository testing its
+      own actions, which must be on disk before a local action can be reached.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.checkout == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - shell: bash
+      # Through the environment rather than interpolated into the script body:
+      # a `${{ }}` expression is pasted in before bash ever sees the line, so an
+      # input carrying a quote or a semicolon would be executing, not arguing.
+      env:
+        PIP_ARGS: ${{ inputs.install }}
+      run: |
+        set -euo pipefail
+        # `set -f` is load-bearing, not tidiness. Unquoted expansion is
+        # deliberate — the point is word splitting, so `build twine` arrives as
+        # two arguments — but unquoted also means bash tries to *glob*, and in
+        # `.[dev]` the `[dev]` is a character class matching a single d, e or v.
+        # With a file named `.d` beside it, the extra silently becomes a
+        # filename. ci.yml keeps a decoy file that makes this fail if the line
+        # below is ever removed.
+        set -f
+        python -m pip install $PIP_ARGS

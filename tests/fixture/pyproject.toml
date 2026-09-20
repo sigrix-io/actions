@@ -1,0 +1,21 @@
+# A throwaway package, so setup-python-project is exercised against a real
+# install rather than asserted about. An action that has never run against a
+# project is a guess, and the consumer should not be the one who finds out.
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sigrix-actions-fixture"
+version = "0.0.0"
+description = "Exists only so the actions in this repository can be run against something."
+requires-python = ">=3.11"
+
+# The extra is the point: `-e tests/fixture[dev]` is the spelling that makes
+# `set -f` in setup-python-project load-bearing, because `[dev]` is also a
+# glob character class.
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["fixture_pkg"]

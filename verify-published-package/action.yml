@@ -1,0 +1,117 @@
+# Install a release from PyPI by name and prove it is the one just published.
+#
+# An upload that succeeds is not the same as a package anyone can install, and
+# the two failures look identical from the publish step: a green tick. Every
+# other check in release.yml proves something about a *local* file. This is the
+# only one that exercises the artifact the world actually gets.
+#
+# Adapted from `sigrix-io/postern`, which has run this shape through real
+# releases.
+#
+# What lives here is the mechanism every Sigrix package shares — wait for the
+# index, install the exact version, check it is that version and that it
+# carries its type marker. What does NOT live here is what each package claims
+# about itself: the tools sigrix-mcp serves, the exports mullion resolves. The
+# `python` output exists so a caller can make those assertions against this
+# same environment, in its own workflow, in its own words.
+name: Verify a published package
+description: Install a release from PyPI by name and check it is the expected version.
+
+inputs:
+  package:
+    description: The distribution name on PyPI, as `pip install` spells it.
+    required: true
+  version:
+    description: The exact version this run published.
+    required: true
+  import-name:
+    description: The module name, which is not always the distribution name.
+    required: true
+  python-version:
+    description: The Python to verify against.
+    required: false
+    default: "3.13"
+  attempts:
+    description: >-
+      How many times to retry the install. The index lags an upload by seconds
+      usually and by minutes occasionally, and the asymmetry is what sets the
+      default: a window that is too short reports a healthy release as a
+      failure, while one that is too long costs nothing until something is
+      actually wrong. The loop breaks on the first success, so the usual cost
+      is a single attempt. 40 attempts at 15 seconds is ten minutes.
+    required: false
+    default: "40"
+  interval:
+    description: Seconds between attempts.
+    required: false
+    default: "15"
+
+outputs:
+  python:
+    description: >-
+      The interpreter the package was installed into, so the caller can assert
+      whatever else it claims about itself.
+    value: ${{ steps.install.outputs.python }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - id: install
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        VERSION: ${{ inputs.version }}
+        IMPORT_NAME: ${{ inputs.import-name }}
+        ATTEMPTS: ${{ inputs.attempts }}
+        INTERVAL: ${{ inputs.interval }}
+      run: |
+        set -euo pipefail
+
+        VENV=/tmp/verify-published
+        python -m venv "$VENV"
+
+        for attempt in $(seq 1 "$ATTEMPTS"); do
+          if "$VENV/bin/pip" install --quiet "${PACKAGE}==${VERSION}"; then
+            echo "installed on attempt $attempt"
+            break
+          fi
+          if [ "$attempt" = "$ATTEMPTS" ]; then
+            echo "::error::${PACKAGE}==${VERSION} never became installable from PyPI. The upload reported success, so check the project page before re-tagging — a version is spent permanently either way."
+            exit 1
+          fi
+          echo "not on the index yet (attempt $attempt); waiting"
+          sleep "$INTERVAL"
+        done
+
+        # From /tmp, so nothing in the caller's checkout can satisfy the
+        # import and make a missing upload look like a present one.
+        cd /tmp
+        "$VENV/bin/python" - <<'PY'
+        import importlib
+        import os
+        import pathlib
+
+        name = os.environ["IMPORT_NAME"]
+        expected = os.environ["VERSION"]
+
+        module = importlib.import_module(name)
+
+        # Not merely that something installed — that the thing published by
+        # *this run* did. An older release already on the index would satisfy
+        # a bare install and tell us nothing.
+        installed = getattr(module, "__version__", None)
+        assert installed == expected, f"installed {installed} from the index, expected {expected}"
+
+        assert "site-packages" in module.__file__, module.__file__
+
+        root = pathlib.Path(module.__file__).parent
+        assert (root / "py.typed").exists(), "py.typed did not survive the round trip to PyPI"
+
+        print(f"{name} {expected} installs from PyPI and imports")
+        PY
+
+        echo "python=$VENV/bin/python" >> "$GITHUB_OUTPUT"

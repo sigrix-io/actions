@@ -1,0 +1,12 @@
+Not a stray file. This exists so that one guard can fail.
+
+setup-python-project runs `pip install $PIP_ARGS` unquoted, because word
+splitting is what lets `build twine` arrive as two arguments. Unquoted also
+means bash globs, and in `-e tests/fixture[dev]` the `[dev]` is a character
+class matching a single d, e or v — so this file's name is exactly what that
+pattern expands to.
+
+`set -f` in the action turns globbing off, which is what keeps the extra an
+extra. Remove that line and the install in ci.yml resolves to this file
+instead of the fixture project, and pip fails. That is the intended behaviour:
+the guard is watchable.

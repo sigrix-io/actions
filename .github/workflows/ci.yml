@@ -1,0 +1,111 @@
+# Run this repository's actions against something real.
+#
+# An action is not testable by reading it. These jobs call each action the way
+# a consumer does and then check what it claims to have done — that the Python
+# asked for is the one running, that the install actually installed, and that
+# a published package verifies. A repository whose whole purpose is to be
+# depended on by three others should find its own breakage first.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The common case: a project and its dev extra, on each supported Python.
+  setup-editable:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      # Checked out here, and `checkout: false` below, because a local action
+      # has to be on disk before it can be reached. A consumer does neither —
+      # it writes the one `uses:` line and lets the action check out.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./setup-python-project
+        with:
+          checkout: false
+          python-version: ${{ matrix.python-version }}
+          # `[dev]` is also a glob character class, and tests/fixtured is named
+          # to match it. If `set -f` ever leaves the action, this resolves to
+          # that file and pip fails here.
+          install: -e tests/fixture[dev]
+
+      - name: The Python that was asked for is the one running
+        env:
+          WANTED: ${{ matrix.python-version }}
+        run: |
+          set -euo pipefail
+          GOT=$(python -c "import sys; print('.'.join(map(str, sys.version_info[:2])))")
+          echo "wanted=$WANTED got=$GOT"
+          [ "$GOT" = "$WANTED" ]
+
+      - name: The project and its extra are importable
+        run: python -c "import fixture_pkg, pytest; assert fixture_pkg.INSTALLED; print('fixture and pytest import')"
+
+  # The other spelling every consumer uses, and the one that proves the
+  # unquoted expansion is doing its job: two packages from one input.
+  setup-multiple-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./setup-python-project
+        with:
+          checkout: false
+          install: build twine
+
+      - name: Both packages arrived, so the argument was split rather than passed whole
+        run: python -c "import build, twine; print('build and twine import')"
+
+  # Pointed at a package that is already published and cannot change:
+  # a PyPI version is permanent, so this is a fixed target.
+  verify-published:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: published
+        uses: ./verify-published-package
+        with:
+          package: mullion
+          version: "0.2.1"
+          import-name: mullion
+          # Three rather than the default forty: here a failure means this
+          # action is broken or PyPI is down, and neither is worth ten minutes
+          # of waiting. A consumer's release is the case the long default is
+          # for.
+          attempts: "3"
+          interval: "5"
+
+      - name: The action hands back an interpreter the caller can use
+        run: |
+          set -euo pipefail
+          cd /tmp
+          ${{ steps.published.outputs.python }} -c "
+          import mullion
+          print('caller-side assertion sees', mullion.__version__)
+          "
+
+  # The aggregate gate. One check to require on `main`, so adding a job above
+  # does not mean editing a branch protection rule to match.
+  ci-passed:
+    if: always()
+    needs: [setup-editable, setup-multiple-packages, verify-published]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded
+        run: |
+          echo '${{ toJSON(needs) }}'
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]

@@ -1,0 +1,26 @@
+# The whole reason this repository exists.
+#
+# Before it, three repositories each carried their own pins for the same four
+# upstream actions, and three Dependabot queues edited them separately. That is
+# how `sigrix-io/mullion` came to run floating tags while `sigrix-io/postern`
+# was pinned: nothing failed, the divergence just accumulated between review
+# cycles. Here there is one queue, and a bump is reviewed once.
+#
+# Two GitHub behaviours worth knowing: this file is read from the default
+# branch, so editing it on a branch changes nothing until it merges; and
+# Dependabot needs the dependency graph enabled on the repository, which is not
+# something this file can assert.
+#
+# Deliberately no auto-merge. A bump here reaches three repositories at once —
+# whichever one next opens a pull request runs it — so it is the last place
+# that should merge itself unattended.
+version: 2
+updates:
+  # The root, rather than `.github/workflows`, so this covers the `uses:` lines
+  # inside the composite action definitions as well as the ones in CI. Those
+  # action files are the point: they hold the pins every consumer no longer
+  # writes for itself.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

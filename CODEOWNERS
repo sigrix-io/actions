@@ -1,0 +1,12 @@
+# Every change is reviewed by the maintainers team; a team rather than a
+# person, so a review never waits on one calendar.
+#
+# This repository is depended on by the others at their CI and release time,
+# so a bad change here is not contained to one project — it lands on whichever
+# repository next opens a pull request. The action definitions are called out
+# separately from the default for that reason, even though the owner is
+# currently the same.
+* @sigrix-io/maintainers
+
+/setup-python-project/     @sigrix-io/maintainers
+/verify-published-package/ @sigrix-io/maintainers

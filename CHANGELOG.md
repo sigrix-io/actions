@@ -9,6 +9,17 @@ is what Dependabot rewrites; this is what says whether it matters.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/new-repository.md`: how a Sigrix public repository is set up, written
+  down so the next one starts from the same place. It centres on the branch
+  ruleset, because that's the one part of the setup no pull request reviews,
+  and gives the `gh` commands to apply, change and verify it, plus what each
+  symptom means when something is off. `docs/default-branch.ruleset.json` is
+  the canonical ruleset, identical to what `sigrix-mcp` runs.
+- Documentation only. Neither action changes, so consumers have nothing to
+  bump for this.
+
 ## [1.0.0] — 2026-09-20
 
 First release. Consumed by `sigrix-io/sigrix-mcp`, `sigrix-io/mullion` and

@@ -106,6 +106,15 @@ a character class. That file is named to be exactly what `tests/fixture[dev]`
 globs to, so removing `set -f` from the action turns CI red instead of turning
 an extra into a filename.
 
+## Setting up a new repository
+
+[`docs/new-repository.md`](docs/new-repository.md) covers what a new Sigrix
+public repository needs besides these actions. The main part is the branch
+ruleset every one of them carries, which lives in repository settings, where
+nothing reviews it. The guide includes the `gh` commands to apply, change and
+verify it, and lists the files to copy. The ruleset itself is
+[`docs/default-branch.ruleset.json`](docs/default-branch.ruleset.json).
+
 ## Licence
 
 Apache-2.0. The Sigrix name and logo are not covered by the licence.

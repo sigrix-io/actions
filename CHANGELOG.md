@@ -22,6 +22,10 @@ is what Dependabot rewrites; this is what says whether it matters.
   page also covers what Verify prints for a branch with no ruleset, a
   JavaScript package's CI and npm release (`gatehouse`), and the release's fork
   guard and no-cancel rule.
+- `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue forms and a
+  pull request template, the community files `docs/new-repository.md` lists
+  for every public repository. This one had none of its own, so it showed the
+  organisation-wide defaults.
 - Documentation only. Neither action changes, so consumers have nothing to
   bump for this.
 

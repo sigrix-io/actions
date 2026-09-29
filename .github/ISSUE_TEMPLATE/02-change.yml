@@ -1,0 +1,29 @@
+name: Change
+description: An action should do something it does not, or a new one belongs here.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        An action here is a mechanism every Sigrix package wants. A claim one
+        package makes about itself stays in that package's workflow. See
+        [CONTRIBUTING.md](https://github.com/sigrix-io/actions/blob/main/CONTRIBUTING.md)
+        for what fits.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What goes wrong today
+      description: >-
+        Describe the situation, not the feature: the workflow, what the action
+        did, and what you had to write around it.
+    validations:
+      required: true
+  - type: textarea
+    id: callers
+    attributes:
+      label: Which repositories would use it?
+      description: >-
+        Something only one repository wants belongs in that repository. Name
+        the ones that would call it, and what each writes today instead.
+    validations:
+      required: true

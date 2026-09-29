@@ -1,0 +1,18 @@
+# The two forms alongside this file are the two kinds of report CONTRIBUTING.md
+# treats differently: an action that does the wrong thing, and a change. A blank
+# issue would let that sorting be skipped.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/sigrix-io/actions/security/policy
+    about: >-
+      Do not open a public issue. Email security@sigrix.io, acknowledged within
+      three working days. These actions run inside other repositories' jobs,
+      so a caller's input executed as code, or a release verified that the
+      index does not serve, is in scope.
+  - name: Raise a code of conduct concern
+    url: https://github.com/sigrix-io/actions/blob/main/CODE_OF_CONDUCT.md
+    about: >-
+      Email conduct@sigrix.io. A different address and a different queue from
+      security reports; neither is a fallback for the other.

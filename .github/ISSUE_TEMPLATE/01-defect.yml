@@ -1,0 +1,45 @@
+name: Defect
+description: An action fails when it should pass, or passes when it should fail.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A run log can carry more than the step you are reporting. Check what
+        you paste for tokens and for the names of private repositories or
+        packages before you submit.
+  - type: textarea
+    id: step
+    attributes:
+      label: The step that calls the action
+      description: The `uses:` line with its commit, and the `with:` inputs.
+      render: yaml
+      placeholder: |
+        - uses: sigrix-io/actions/setup-python-project@<commit> # v1.0.0
+          with:
+            python-version: "3.12"
+            install: -e .[dev]
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: What the step printed
+      description: The failing lines of the run log, or the output of a check that should have failed.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: runner
+    attributes:
+      label: The runner
+      description: The `runs-on` label, and the Python the step asked for.
+      placeholder: "ubuntu-latest, Python 3.13"
+    validations:
+      required: true

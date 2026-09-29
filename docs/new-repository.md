@@ -231,7 +231,10 @@ them from `sigrix-mcp`, which has every one of them, and adjust:
 - **Issue forms and PR template:** `.github/ISSUE_TEMPLATE/`, with blank issues
   turned off in its `config.yml`, and `.github/pull_request_template.md`.
 - **Dependabot:** `.github/dependabot.yml` with the `github-actions` ecosystem at
-  `/`, plus the package ecosystem the repository uses.
+  `/`, plus the package ecosystem the repository uses, each with one group
+  matching `"*"`. The ruleset's up-to-date rule puts every other open update
+  behind each merge, so one pull request per ecosystem costs one rebase round
+  where one per dependency costs one per update.
 - **CI:** every job calls `setup-python-project` from this repository, pinned to
   a 40-character commit with a `# vX.Y.Z` comment. An aggregate job named
   `ci-passed` sits at the end. This repository has no action for Node, so a

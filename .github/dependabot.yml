@@ -11,6 +11,13 @@
 # Dependabot needs the dependency graph enabled on the repository, which is not
 # something this file can assert.
 #
+# One pull request per ecosystem, not one per dependency. The branch ruleset
+# only merges a pull request that is up to date with main, so every merge puts
+# every other open update behind, and each then needs `@dependabot rebase` and
+# a fresh CI run before it can follow. A group costs one round of that. The
+# price is that a bump which breaks something holds back the rest of its group
+# until it is fixed, or excluded with `@dependabot ignore <dependency>`.
+#
 # Deliberately no auto-merge. A bump here reaches three repositories at once —
 # whichever one next opens a pull request runs it — so it is the last place
 # that should merge itself unattended.
@@ -24,3 +31,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

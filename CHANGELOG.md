@@ -17,6 +17,11 @@ is what Dependabot rewrites; this is what says whether it matters.
   and gives the `gh` commands to apply, change and verify it, plus what each
   symptom means when something is off. `docs/default-branch.ruleset.json` is
   the canonical ruleset, identical to what `sigrix-mcp` runs.
+- Its Verify loop reads the org's public repositories from the API instead of
+  naming four, so a repository nobody added to a list still gets checked. The
+  page also covers what Verify prints for a branch with no ruleset, a
+  JavaScript package's CI and npm release (`gatehouse`), and the release's fork
+  guard and no-cancel rule.
 - Documentation only. Neither action changes, so consumers have nothing to
   bump for this.
 

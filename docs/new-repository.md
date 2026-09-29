@@ -1,8 +1,9 @@
 # Setting up a new public repository
 
 How the Sigrix public repositories are configured, written down so the next one
-starts from the same place rather than from memory. `sigrix-mcp`, `mullion` and
-`postern` follow it, and so does this repository.
+starts from the same place rather than from memory. It applies to every public
+repository in the org except `.github`, and the Verify section reads that list
+from the API rather than from this page.
 
 Most of a repository's setup is files: they go through pull requests, and CI
 notices when one is wrong. **The branch ruleset is the exception.** It lives in
@@ -49,7 +50,7 @@ changes.
 
 ### Name the aggregate CI job `ci-passed`
 
-`sigrix-mcp`, `mullion` and this repository all do, so the ruleset applies to
+Every public repository with CI does except `postern`, so the ruleset applies to
 them unchanged. `postern` is older than the convention and requires `validate`
 and `conformance-status` instead. A new repository should use `ci-passed`: one
 job that `needs:` every other job and fails if any of them failed or were
@@ -162,7 +163,8 @@ ruleset at every level, including org-level ones that a repository's own
 ruleset list doesn't show:
 
 ```sh
-for r in sigrix-mcp mullion postern actions; do
+PUBLIC='.[] | select(.visibility == "public" and (.archived | not) and .name != ".github") | .name'
+for r in $(gh api orgs/sigrix-io/repos --paginate --jq "$PUBLIC"); do
   echo "== $r =="
   gh api "repos/sigrix-io/$r/rules/branches/main" --jq '{
     rulesets:     ([.[].ruleset_id] | unique),
@@ -180,12 +182,23 @@ for r in sigrix-mcp mullion postern actions; do
 done
 ```
 
-Add the new repository to the list. A healthy repository shows:
+The list comes from the org rather than from this page: every public repository
+that isn't archived. A new one appears in it as soon as it's public, which is
+when it most needs checking, because it starts with no ruleset at all. A list
+typed here only covered the repositories someone remembered to add:
+`sigrix-launcher`, `bailey` and `gatehouse` were public with no ruleset while it
+named four others.
+
+`.github` is left out. It holds the org profile and the community defaults and
+runs no CI, so this ruleset would hold every pull request there on a
+`ci-passed` that never reports.
+
+A healthy repository shows:
 
 | Field | Expect |
 |---|---|
 | `rulesets` | **one** ID. Two means rulesets are stacked. |
-| `rules` | `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` |
+| `rules` | `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` (for `actions`: `required_linear_history` as well) |
 | `approvals` / `code_owner` / `unattributed` / `last_push` | `[0]` / `[false]` / `[false]` / `[false]` |
 | `checks` | `["ci-passed"]` (for `postern`: `["validate", "conformance-status"]`) |
 | `up_to_date` | `[true]` |
@@ -198,6 +211,7 @@ rulesets are stacked on the same branch.
 
 | You see | It means |
 |---|---|
+| Verify prints `[]` for every field, and no ruleset under it | No ruleset is in force on that branch. `gh api repos/sigrix-io/<repo>/branches/main --jq .protected` printing `false` confirms nothing protects it: anyone with write access can push to it directly or force-push it. Apply the ruleset (see "Apply it to a new repository"). |
 | `Branch not protected (HTTP 404)` from `…/branches/main/protection` | That endpoint only covers the older *classic* branch protection, and this repository is protected by a ruleset instead. Use `…/rules/branches/main`. |
 | A PR reads `blocked` with every check green | Either something wants an approval nobody can give (code owners, unattributed changes, last push), or a required check name is one nothing reports. The merge box on the PR says which. |
 | A PR reads `behind` | The up-to-date rule is doing its job; the branch needs updating. For a Dependabot PR, comment `@dependabot rebase` rather than pressing **Update branch**. The button pushes a merge commit onto Dependabot's branch, and Dependabot stops maintaining a PR once someone else has changed it. |
@@ -210,7 +224,7 @@ rulesets are stacked on the same branch.
 ## The rest of a new repository
 
 These are files, so they go through pull requests like everything else. Copy
-them from `sigrix-mcp`, the most recently aligned repository, and adjust:
+them from `sigrix-mcp`, which has every one of them, and adjust:
 
 - **Community files:** `CODE_OF_CONDUCT.md` (byte-identical across the
   repositories), `SECURITY.md`, `CONTRIBUTING.md`, and a team in `CODEOWNERS`.
@@ -220,11 +234,21 @@ them from `sigrix-mcp`, the most recently aligned repository, and adjust:
   `/`, plus the package ecosystem the repository uses.
 - **CI:** every job calls `setup-python-project` from this repository, pinned to
   a 40-character commit with a `# vX.Y.Z` comment. An aggregate job named
-  `ci-passed` sits at the end.
+  `ci-passed` sits at the end. This repository has no action for Node, so a
+  JavaScript package pins `actions/checkout` and `actions/setup-node` in its
+  own workflows the same way; copy `gatehouse`.
 - **Pin guard:** `tests/test_workflow_pins.py`, which fails if any `uses:` loses
-  its commit pin or its version comment.
+  its commit pin or its version comment. `gatehouse` runs the same checks under
+  vitest, as `tests/workflow_pins.test.js`.
 - **Release:** trusted publishing through a `pypi` environment. Create the
   environment in the repository's settings *and* the trusted publisher on PyPI;
   neither complains if it's missing until the first tag is pushed. After
-  publishing, a `verify` job runs `verify-published-package`.
+  publishing, a `verify` job runs `verify-published-package`. The release
+  refuses to run in a fork (`if: github.repository == 'sigrix-io/<repo>'`) and
+  is never cancelled (`cancel-in-progress: false`), because a run stopped
+  mid-upload can leave a version half-published, and a version number can't be
+  reused. An npm package publishes through an `npm` environment instead, and
+  its first version is published by hand: npm adds a trusted publisher in a
+  package's own settings, so the package has to exist first. `gatehouse` does
+  this.
 - **The ruleset:** everything above this section.

@@ -29,6 +29,13 @@ is what Dependabot rewrites; this is what says whether it matters.
 - Documentation only. Neither action changes, so consumers have nothing to
   bump for this.
 
+### Changed
+
+- Dependabot opens one pull request for every action update instead of one
+  per action, and `docs/new-repository.md` makes that the setup for every
+  public repository: the up-to-date rule in the ruleset puts every other open
+  update behind each merge. Neither action changes.
+
 ## [1.0.0] — 2026-09-20
 
 First release. Consumed by `sigrix-io/sigrix-mcp`, `sigrix-io/mullion` and

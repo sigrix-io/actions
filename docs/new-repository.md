@@ -6,10 +6,11 @@ repository in the org except `.github`, and the Verify section reads that list
 from the API rather than from this page.
 
 Most of a repository's setup is files: they go through pull requests, and CI
-notices when one is wrong. **The branch ruleset is the exception.** It lives in
-the repository's settings, where no pull request reviews it and nothing notices
-when it drifts. So this document writes it out in full, together with the `gh`
-commands that apply it, change it and check it.
+notices when one is wrong. **The branch ruleset is the exception**, with one
+repository setting beside it: deleting a branch once its pull request merges.
+Both live in the repository's settings, where no pull request reviews them and
+nothing notices when they drift. So this document writes them out in full,
+together with the `gh` commands that apply, change and check them.
 
 The main commands here (apply, look, change in place, verify, delete) were used
 to bring `sigrix-mcp`, `mullion`, `postern` and `actions` into line. Each of the
@@ -81,8 +82,15 @@ If it prints nothing, create the ruleset. From a clone of this repository:
 gh api -X POST repos/sigrix-io/$NEW/rulesets --input docs/default-branch.ruleset.json
 ```
 
-Or, without a clone, copy it from a repository that already has it. This is how
-`mullion` got its ruleset. It looks up the source ruleset's ID by name:
+Without a clone, read the same reviewed file from GitHub. This is how `pageant`
+and `tollhouse` got theirs:
+
+```sh
+gh api -H 'Accept: application/vnd.github.raw+json' repos/sigrix-io/actions/contents/docs/default-branch.ruleset.json | gh api -X POST repos/sigrix-io/$NEW/rulesets --input -
+```
+
+Or copy it from a repository that already has it. This is how `mullion` got its
+ruleset. It looks up the source ruleset's ID by name:
 
 ```sh
 SRC=$(gh api repos/sigrix-io/sigrix-mcp/rulesets --jq '.[] | select(.name == "default-branch") | .id')
@@ -96,6 +104,20 @@ section below is how you'd see it.
 
 If the aggregate job isn't called `ci-passed`, apply the ruleset anyway and then
 swap the check using the first example below.
+
+### Then delete a branch once its pull request merges
+
+The one repository setting beside the ruleset is **Automatically delete head
+branches** (Settings, General). Every public repository has it on, so a merged
+pull request's branch goes with it instead of piling up. A new repository starts
+with it off, which is how `pageant` and `tollhouse` went without it until
+2026-11-18, while this page did not mention it:
+
+```sh
+gh api -X PATCH repos/sigrix-io/$NEW -F delete_branch_on_merge=true --jq .delete_branch_on_merge
+```
+
+It prints `true`. Verify reads it back for every public repository.
 
 ## Change an existing ruleset
 
@@ -166,6 +188,7 @@ ruleset list doesn't show:
 PUBLIC='.[] | select(.visibility == "public" and (.archived | not) and .name != ".github") | .name'
 for r in $(gh api orgs/sigrix-io/repos --paginate --jq "$PUBLIC"); do
   echo "== $r =="
+  gh api "repos/sigrix-io/$r" --jq '{delete_branch_on_merge}'
   gh api "repos/sigrix-io/$r/rules/branches/main" --jq '{
     rulesets:     ([.[].ruleset_id] | unique),
     rules:        ([.[].type] | unique),
@@ -177,7 +200,7 @@ for r in $(gh api orgs/sigrix-io/repos --paginate --jq "$PUBLIC"); do
     up_to_date:   [.[] | select(.type=="required_status_checks") | .parameters.strict_required_status_checks_policy]
   }'
   for id in $(gh api "repos/sigrix-io/$r/rulesets" --jq '.[].id'); do
-    gh api "repos/sigrix-io/$r/rulesets/$id" --jq '{name, enforcement, bypass: [.bypass_actors[]? | .bypass_mode]}'
+    gh api "repos/sigrix-io/$r/rulesets/$id" --jq '{name, target, enforcement, bypass: [.bypass_actors[]? | .bypass_mode]}'
   done
 done
 ```
@@ -197,12 +220,13 @@ A healthy repository shows:
 
 | Field | Expect |
 |---|---|
+| `delete_branch_on_merge` | `true` |
 | `rulesets` | **one** ID. Two means rulesets are stacked. |
 | `rules` | `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` (for `actions`: `required_linear_history` as well) |
 | `approvals` / `code_owner` / `unattributed` / `last_push` | `[0]` / `[false]` / `[false]` / `[false]` |
 | `checks` | `["ci-passed"]` (for `postern`: `["validate", "conformance-status"]`) |
 | `up_to_date` | `[true]` |
-| name / enforcement / bypass | `default-branch` / `active` / `["pull_request"]` |
+| name / target / enforcement / bypass | `default-branch` / `branch` / `active` / `["pull_request"]`. A second ruleset whose `target` is `tag` guards tags instead, as `herald`'s `release tags` does; it does not stack with this one. |
 
 Each field is a list on purpose. One entry means one rule. Two entries means two
 rulesets are stacked on the same branch.
@@ -212,12 +236,14 @@ rulesets are stacked on the same branch.
 | You see | It means |
 |---|---|
 | Verify prints `[]` for every field, and no ruleset under it | No ruleset is in force on that branch. `gh api repos/sigrix-io/<repo>/branches/main --jq .protected` printing `false` confirms nothing protects it: anyone with write access can push to it directly or force-push it. Apply the ruleset (see "Apply it to a new repository"). |
+| A ruleset on the branch named other than `default-branch`, an `always` bypass, `up_to_date` reading `[false]`, or a rule the table above does not list, such as `merge_queue` | It was made by hand in the settings rather than from the reviewed file; `herald`'s had all four (found 2026-11-18). Replace it in place with the file, after "Look first": `gh api -X PUT repos/sigrix-io/<repo>/rulesets/<id> --input docs/default-branch.ruleset.json`. |
+| A merged pull request's branch is still there | Deleting merged branches is off on that repository. Turn it on (see "Then delete a branch once its pull request merges") and delete the leftover branch by hand. |
 | `Branch not protected (HTTP 404)` from `…/branches/main/protection` | That endpoint only covers the older *classic* branch protection, and this repository is protected by a ruleset instead. Use `…/rules/branches/main`. |
 | A PR reads `blocked` with every check green | Either something wants an approval nobody can give (code owners, unattributed changes, last push), or a required check name is one nothing reports. The merge box on the PR says which. |
 | A PR reads `behind` | The up-to-date rule is doing its job; the branch needs updating. For a Dependabot PR, comment `@dependabot rebase` rather than pressing **Update branch**. The button pushes a merge commit onto Dependabot's branch, and Dependabot stops maintaining a PR once someone else has changed it. |
 | `mergeable_state: unknown` | GitHub works this out only when asked, and it can lag straight after a push. Read it again before concluding anything. |
 | `Problems parsing JSON (HTTP 400)` after pasting JSON into the terminal | The shell mangled the paste; a long heredoc can arrive spliced and duplicated. Nothing changed. Use `--input <file>` or the fetch–change–write-back pattern instead. |
-| `open …json: no such file or directory` | `--input` paths are relative to the current directory. Downloaded files usually land in `~/Downloads`. |
+| `open …json: no such file or directory` | `--input` paths are relative to the current directory. Downloaded files usually land in `~/Downloads`. Or read the file from GitHub instead of a clone (see "Apply it to a new repository"). |
 | A rule disappeared after a `PUT` | `PUT` replaces the whole ruleset. Check with "Look first" before replacing anything. |
 | Two rulesets on one branch | A `POST` was run where a `PUT` was meant. Delete the stale one with `gh api -X DELETE repos/sigrix-io/<repo>/rulesets/<id>`, which prints nothing when it succeeds. |
 

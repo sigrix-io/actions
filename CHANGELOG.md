@@ -35,6 +35,13 @@ is what Dependabot rewrites; this is what says whether it matters.
   per action, and `docs/new-repository.md` makes that the setup for every
   public repository: the up-to-date rule in the ruleset puts every other open
   update behind each merge. Neither action changes.
+- `docs/new-repository.md` turns on deleting a merged branch, the one
+  repository setting beside the ruleset, and Verify reads it back: `pageant`
+  and `tollhouse` went without it while the page did not say. Verify also prints
+  each ruleset's target, so a tag ruleset is not read as a stacked one, and the
+  page says what a hand-made branch ruleset looks like (`herald`'s) and how to
+  replace it with the reviewed file, which `gh` can read straight from GitHub
+  without a clone. Documentation only; neither action changes.
 
 ## [1.0.0] — 2026-09-20
 
